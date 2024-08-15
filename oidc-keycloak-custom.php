@@ -160,7 +160,6 @@ add_filter( 'openid-connect-generic-settings-fields', 'oidc_keycloak_role_mappin
  * @return bool
  */
 function oidc_keycloak_user_creation_test( $result, $user_claim ) {
-
 	// @var array<mixed> $settings
 	$settings = get_option( 'openid_connect_generic_settings', array() );
 
@@ -213,18 +212,29 @@ function oidc_keycloak_map_user_role( $user, $user_claim ) {
 	if ( ! empty( $settings ) && ! empty( $user_claim['user-realm-role'] ) ) {
 		// @var int $role_count
 		$role_count = 0;
-
+		// @var array<mixed> $new_roles
+		$new_roles = array();
 		foreach ( $user_claim['user-realm-role'] as $idp_role ) {
 			foreach ( $roles as $role_id => $role_name ) {
 				if ( ! empty( $settings[ 'oidc_idp_' . strtolower( $role_name ) . '_roles' ] ) ) {
 					if ( in_array( $idp_role, explode( ';', $settings[ 'oidc_idp_' . strtolower( $role_name ) . '_roles' ] ) ) ) {
-						$user->add_role( $role_id );
+						$new_roles[$role_id] = true;
 						$role_count++;
 					}
 				}
 			}
 		}
-
+		foreach ( (array) $user->roles as $urole ) {
+			if(array_key_exists($urole, $new_roles)) {
+				unset($new_roles[$urole]);
+			}
+			else{
+				$user->remove_role($urole);
+			}
+		}
+		foreach ($new_roles as $nrole => $def) {
+			$user->add_role($nrole);
+		}
 		if ( intval( $role_count ) == 0 && ! empty( $settings['default_user_role'] ) ) {
 			if ( boolval( $settings['default_user_role'] ) ) {
 				$user->set_role( $settings['default_user_role'] );
